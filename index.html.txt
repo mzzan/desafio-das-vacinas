@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Desafio das Vacinas</title>
+  <style>
+    /* Estilos originais */
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #000;
+      color: #fff;
+    }
+    #overlay, #personagemOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    #dado, .opcaoPersonagem {
+      width: 80px;
+      height: 80px;
+      background-color: #fff;
+      color: #333;
+      font-size: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      cursor: pointer;
+      margin: 10px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    }
+    #tabuleiro {
+      display: grid;
+      grid-template-columns: repeat(7, 50px);
+      grid-template-rows: repeat(7, 50px);
+      gap: 2px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .casa {
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      background-color: #ffffff;
+      border: 1px solid #000;
+      position: relative;
+    }
+    .especial {
+      background-color: yellow;
+      font-weight: bold;
+      color: black;
+    }
+    .voltar {
+      background-color: red;
+    }
+    .avancar {
+      background-color: blue;
+    }
+    .perderPontos {
+      background-color: green;
+      color: white;
+    }
+    .fim {
+      grid-column: 3 / span 3;
+      grid-row: 3 / span 3;
+      background-color: red;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 24px;
+    }
+    .jogador {
+      width: 30px;
+      height: 30px;
+    }
+    .quadrado { background-color: blue; }
+    .triangulo { background-color: green; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+    .circulo { background-color: orange; border-radius: 50%; }
+    .mensagem-vermelha {
+      color: red;
+    }
+    #perguntaArea, #botaoDica {
+      margin-top: 10px;
+    }
+    #botaoDica {
+      display: none;
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
+      background-color: yellow;
+      color: black;
+      border: none;
+      border-radius: 5px;
+    }
+    .opcaoPersonagem-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin: 10px;
+      cursor: pointer;
+    }
+    #confirmarPersonagem {
+      padding: 10px 20px;
+      font-size: 20px;
+      cursor: pointer;
+      background-color: #333;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    .seta-direcao {
+      position: absolute;
+      opacity: 0.2;
+      font-size: 20px;
+      color: #FFA500;
+    }
+    .seta-direita { top: 50%; right: 5px; transform: translateY(-50%) rotate(90deg); }
+    .seta-baixo { bottom: 5px; left: 50%; transform: translateX(-50%) rotate(180deg); }
+    .seta-esquerda { top: 50%; left: 5px; transform: translateY(-50%) rotate(270deg); }
+    .seta-cima { top: 5px; left: 50%; transform: translateX(-50%); }
+  </style>
+</head>
+<body>
+
+  <h1>Desafio das Vacinas</h1>
+
+  <!-- Escolha de Personagem -->
+  <div id="personagemOverlay">
+    <div>
+      <h2 style="font-size: 32px;">Escolha seu Personagem</h2>
+      <div class="opcaoPersonagem-container" onclick="escolherPersonagem('quadrado')">
+        <div class="jogador quadrado"></div> Quadrado
+      </div>
+      <div class="opcaoPersonagem-container" onclick="escolherPersonagem('triangulo')">
+        <div class="jogador triangulo"></div> Triângulo
+      </div>
+      <div class="opcaoPersonagem-container" onclick="escolherPersonagem('circulo')">
+        <div class="jogador circulo"></div> Círculo
+      </div>
+      <button id="confirmarPersonagem" onclick="confirmarPersonagem()">Confirmar Personagem</button>
+    </div>
+  </div>
+
+  <div id="perguntaArea">
+    <p id="pergunta" style="font-size: 24px;"></p>
+    <input type="text" id="resposta" placeholder="Digite sua resposta" style="font-size: 18px;">
+    <button id="botaoResponder" onclick="verificarResposta()" disabled style="font-size: 18px;">Responder</button>
+  </div>
+
+  <div id="overlay">
+    <div id="dado" onclick="girarDado()">1</div>
+  </div>
+
+  <button id="botaoGirarDado" onclick="exibirDado()">Girar Dado</button>
+  <button id="botaoDica" onclick="usarDica()">Usar Dica</button>
+
+  <div id="tabuleiro"></div>
+
+  <p id="mensagem"></p>
+  <p>Pontuação: <span id="pontuacao">0</span></p>
+
+  <script>
+    const perguntas = [
+      { pergunta: "Como as vacinas protegem o corpo?", resposta: "Imunizando contra doenças" },
+      { pergunta: "Qual é a primeira vacina aplicada em um bebê?", resposta: "BCG" },
+      { pergunta: "As vacinas são seguras?", resposta: "Sim" },
+      { pergunta: "Qual vacina foi essencial para erradicar a varíola?", resposta: "Varíola" },
+      { pergunta: "O que é imunidade de rebanho?", resposta: "Proteção coletiva" },
+      { pergunta: "Vacinas previnem apenas uma pessoa ou a população?", resposta: "População" },
+      { pergunta: "Qual tipo de vacina usa RNA mensageiro?", resposta: "Vacina de RNA" },
+      { pergunta: "Vacinação infantil é obrigatória?", resposta: "Sim" }
+    ];
+
+    let posicaoJogador = 0;
+    let perguntaAtual = 0;
+    let personagemClasse = "quadrado";
+    let dadoBloqueado = false;
+    let dicasDisponiveis = 0;
+    let pontuacao = 0;
+
+    // Função para normalizar e remover acentos
+    function normalizarTexto(texto) {
+      return texto
+        .normalize("NFD") 
+        .replace(/[\u0300-\u036f]/g, "") 
+        .toLowerCase()
+        .replace(/(^|\s)a\s/g, ""); // Remove o artigo "a" no início
+    }
+
+    function verificarResposta() {
+      const respostaJogador = document.getElementById("resposta").value.trim();
+      const respostaCorreta = perguntas[perguntaAtual].resposta;
+
+      // Normaliza ambas as respostas para comparação
+      if (normalizarTexto(respostaJogador) === normalizarTexto(respostaCorreta)) {
+        document.getElementById("mensagem").innerText = "Resposta correta! Avance.";
+        pontuacao += 10;
+        posicaoJogador += valorDado;
+        aplicarEfeitoCasa();
+      } else {
+        document.getElementById("mensagem").innerHTML = `Resposta incorreta. A resposta certa é: ${respostaCorreta}`;
+        document.getElementById("botaoGirarDado").disabled = false;
+      }
+      atualizarPontuacao();
+      criarTabuleiro();
+      mostrarPergunta();
+    }
+
+    function aplicarEfeitoCasa() {
+      const casa = posicaoJogador;
+      if (casa === 5) posicaoJogador -= 2;
+      if (casa === 10) posicaoJogador += 1;
+      if (casa === 16) pontuacao -= 5;
+      if (casa === 30) dicasDisponiveis += 1;
+    }
+
+    function atualizarPontuacao() {
+      document.getElementById("pontuacao").innerText = pontuacao;
+    }
+
+    function criarTabuleiro() {
+      const tabuleiro = document.getElementById("tabuleiro");
+      tabuleiro.innerHTML = '';
+
+      const casasEspeciais = {
+        2: { tipo: "especial", efeito: "+1 dica" },
+        5: { tipo: "voltar", efeito: "-2 casas" },
+        10: { tipo: "avancar", efeito: "+1 casa" },
+        16: { tipo: "perderPontos", efeito: "-5 pontos" },
+        22: { tipo: "especial", efeito: "+1 dica" },
+        30: { tipo: "especial", efeito: "+1 dica" }
+      };
+
+      for (let i = 0; i < 48; i++) {
+        const casa = document.createElement("div");
+        casa.className = "casa";
+
+        if (casasEspeciais[i]) {
+          casa.classList.add(casasEspeciais[i].tipo);
+          casa.innerText = casasEspeciais[i].efeito;
+        }
+
+        const seta = document.createElement("div");
+        seta.classList.add("seta-direcao");
+        if (i % 7 === 0) {
+          seta.innerHTML = "&#8595;";
+          seta.classList.add("seta-baixo");
+        } else if (i % 7 === 6) {
+          seta.innerHTML = "&#8593;";
+          seta.classList.add("seta-cima");
+        } else if (Math.floor(i / 7) % 2 === 0) {
+          seta.innerHTML = "&#8594;";
+          seta.classList.add("seta-direita");
+        } else {
+          seta.innerHTML = "&#8592;";
+          seta.classList.add("seta-esquerda");
+        }
+        casa.appendChild(seta);
+
+        if (i === posicaoJogador) {
+          const jogador = document.createElement("div");
+          jogador.className = `jogador ${personagemClasse}`;
+          casa.appendChild(jogador);
+        }
+
+        tabuleiro.appendChild(casa);
+      }
+
+      const casaFim = document.createElement("div");
+      casaFim.className = "fim";
+      casaFim.innerText = "Fim";
+      tabuleiro.appendChild(casaFim);
+    }
+
+    function mostrarPergunta() {
+      perguntaAtual = Math.floor(Math.random() * perguntas.length);
+      document.getElementById("pergunta").innerText = perguntas[perguntaAtual].pergunta;
+      document.getElementById("resposta").value = '';
+      document.getElementById("botaoResponder").disabled = true;
+    }
+
+    let valorDado = 1;
+
+    function exibirDado() {
+      if (!dadoBloqueado) {
+        dadoBloqueado = true;
+        document.getElementById("overlay").style.display = "flex";
+        girarDado();
+        document.getElementById("botaoGirarDado").disabled = true;
+      }
+    }
+
+    function girarDado() {
+      let interval = setInterval(() => {
+        valorDado = Math.floor(Math.random() * 6) + 1;
+        document.getElementById("dado").innerText = valorDado;
+      }, 100);
+
+      setTimeout(() => {
+        clearInterval(interval);
+        dadoBloqueado = false;
+        document.getElementById("overlay").style.display = "none";
+        document.getElementById("mensagem").innerText = `Você tirou ${valorDado}. Responda para avançar!`;
+        document.getElementById("botaoResponder").disabled = false;
+      }, 1500);
+    }
+
+    function escolherPersonagem(classe) {
+      personagemClasse = classe;
+      criarTabuleiro();
+    }
+
+    function confirmarPersonagem() {
+      document.getElementById("personagemOverlay").style.display = "none";
+      criarTabuleiro();
+    }
+
+    function usarDica() {
+      if (dicasDisponiveis > 0) {
+        alert(`Dica: A resposta começa com "${perguntas[perguntaAtual].resposta.charAt(0)}"`);
+        dicasDisponiveis--;
+        if (dicasDisponiveis === 0) {
+          document.getElementById("botaoDica").style.display = "none";
+        }
+      }
+    }
+
+    criarTabuleiro();
+    mostrarPergunta();
+    document.getElementById("personagemOverlay").style.display = "flex";
+  </script>
+
+</body>
+</html>
